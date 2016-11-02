@@ -1,6 +1,8 @@
 package com.jin123d.takephoto;
 
+import android.Manifest;
 import android.app.Activity;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -11,6 +13,9 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Button;
@@ -19,10 +24,11 @@ import android.widget.ImageView;
 import java.io.File;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private static final int CAPTURE_IMAGE_ACTIVITY_REQUEST_CODE = 10002;
     private static final int PICK_ACTIVITY_REQUEST_CODE = 10003;
     private static final int CROP_ACTIVITY_REQUEST_CODE = 10008;
+    private static final int WRITE_EXTERNAL_STORAGE_REQUEST_CODE = 10010;
 
     private ImageView imageView;
 
@@ -37,19 +43,22 @@ public class MainActivity extends AppCompatActivity {
         Button btn_pick = (Button) findViewById(R.id.btn_pick);
         Button btn_take = (Button) findViewById(R.id.btn_take);
         imageView = (ImageView) findViewById(R.id.image_view);
-        btn_take.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                takePhoto();
-            }
-        });
+        btn_take.setOnClickListener(this);
+        btn_pick.setOnClickListener(this);
+        //打开app检查权限
+        permission();
+    }
 
-        btn_pick.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.btn_pick:
                 pickPhoto();
-            }
-        });
+                break;
+            case R.id.btn_take:
+                takePhoto();
+                break;
+        }
     }
 
 
@@ -60,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
             File imageFile = new File(Environment.getExternalStorageDirectory(), "/temp/" + System.currentTimeMillis() + ".jpg");
             if (!imageFile.getParentFile().exists()) imageFile.getParentFile().mkdirs();
             imageFilePath = imageFile.getPath();
-
             //兼容性判断
             Uri imageUri;
             if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP_MR1) {
@@ -166,5 +174,50 @@ public class MainActivity extends AppCompatActivity {
         }
         startActivityForResult(intent, CROP_ACTIVITY_REQUEST_CODE);
     }
+
+
+    /**
+     * 申请权限
+     */
+    private void permission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                != PackageManager.PERMISSION_GRANTED) {
+            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                //拒绝权限以后
+                showMessageOKCancel();
+                return;
+            }
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                    WRITE_EXTERNAL_STORAGE_REQUEST_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == WRITE_EXTERNAL_STORAGE_REQUEST_CODE) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                //同意授权
+            } else {
+                //拒绝授权后重新申请
+                permission();
+            }
+        }
+    }
+
+
+    private void showMessageOKCancel() {
+        new AlertDialog.Builder(MainActivity.this)
+                .setMessage("必须授予储存空间的权限！！！！！！！！！！！！！！")
+                .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        finish();
+                    }
+                })
+                .create()
+                .show();
+    }
+
 
 }
